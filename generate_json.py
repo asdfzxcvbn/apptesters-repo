@@ -19,7 +19,7 @@ if __name__ == "__main__":
     with open(out_file, "r") as f:
         data = json.load(f)
 
-    if os.path.exists("bundleId.csv"):
+    if os.path.isfile("bundleId.csv"):
         df = pd.read_csv("bundleId.csv")
     else:
         df = pd.DataFrame(columns=["name", "bundleId"])
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
         for asset in release.get_assets():
             if not asset.name.endswith(".ipa"):
-                continue
+                continue 
             name = asset.name[:-4]
             date = asset.created_at.strftime("%Y-%m-%d")
             full_date = asset.created_at.strftime("%Y%m%d%H%M%S")
@@ -45,14 +45,14 @@ if __name__ == "__main__":
                 app_name, version, tweaks = name.split("_", 2)
                 tweaks, _ = tweaks.split("@", 1)
                 if tweaks:
-                    tweaks = "Injected with " + tweaks[:-1].replace("_", " ")
-            except:
+                    tweaks = f"Injected with {tweaks[:-1].replace("_", " ")}"
+            except Exception:
                 app_name = name
                 version = "Unknown"
                 tweaks = None
 
             if app_name in df.name.values:
-                bundle_id = str(df[df.name == app_name].bundleId.values[0])
+                bundle_id = df[df.name == app_name].bundleId.values[0]
             else:
                 bundle_id = get_single_bundle_id(asset.browser_download_url)
                 df = pd.concat([df, pd.DataFrame(

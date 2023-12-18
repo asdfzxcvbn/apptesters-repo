@@ -1,19 +1,34 @@
-import requests
+import os
+# import shutil
 import zipfile
 import plistlib
+from tempfile import NamedTemporaryFile as NTF
+
 import github
+import requests
 import pandas as pd
-import shutil
-import os
+from PIL import Image
 
 
-def get_single_bundle_id(url, name="temp.ipa"):
-    reponse = requests.get(url)
-    open(name, 'wb').write(reponse.content)
+def save_appstore_icon(bundle: str) -> bool:
+    x = requests.get(f"https://itunes.apple.com/lookup?bundleId={bundle}&limit=1&country=US").json()
+    try:
+        icon_url = x["results"][0]["artworkUrl512"]
+    except (KeyError, IndexError):
+        return False  # invalid appstore app, will have to extract from ipa
+ 
+    with NTF() as tmp:
+        tmp.write(requests.get(icon_url).content)
+        with Image.open(tmp.name) as img:
+            img.save(f"icons/{bundle}.png", "PNG")  # usually jpg, so we save as png instead
+    return True
 
-    icon_folder = "icons/"
-    if not os.path.exists(icon_folder):
-        os.mkdir(icon_folder)
+
+def get_single_bundle_id(url, name="temp.ipa") -> str:
+    with open(name, "wb") as f:
+        f.write(requests.get(url).content)
+
+    os.makedirs("icons", exist_ok=True)
         
     try:
         assert(zipfile.is_zipfile(name))
@@ -21,43 +36,29 @@ def get_single_bundle_id(url, name="temp.ipa"):
         print(f"[!] bad zipfile: {os.path.basename(url)} ({url})")
         return
         
-    with zipfile.ZipFile(name, mode="r") as archive:
-        for file_name in archive.namelist():
+    with zipfile.ZipFile(name) as archive:
+        for file_name in (nl := archive.namelist()):
             if file_name.endswith(".app/Info.plist"):
                 info_file = file_name
-                folder_path = os.path.dirname(info_file)
+                break
 
         with archive.open(info_file) as fp:
             pl = plistlib.load(fp)
-            icon_path = ""
             bundleId = pl["CFBundleIdentifier"]
-            if "CFBundleIconFiles" in pl.keys():
+            if not save_appstore_icon(bundleId):
                 try:
-                    icon_path = os.path.join(
-                        folder_path, pl["CFBundleIconFiles"][0])
-                except:
-                    # index [0] out-of-range: empty icon list
-                    return bundleId
-            if "CFBundleIcons" in pl.keys():
-                try:
-                    icon_prefix = pl["CFBundleIcons"]["CFBundlePrimaryIcon"]["CFBundleIconFiles"][0]
-                except:
-                    icon_prefix = pl["CFBundleIcons"]["CFBundlePrimaryIcon"]["CFBundleIconName"]
-                for file_name in archive.namelist():
-                    if icon_prefix in file_name:
-                        icon_path = file_name
-            if icon_path:
-                try:
-                    with archive.open(icon_path) as origin, open(icon_folder + bundleId + ".png", "wb") as dst:
-                        shutil.copyfileobj(origin, dst)
-                except:
-                    pass
-            else:  # no icon info
-                pass
+                    icon_path = pl["CFBundleIcons"]["CFBundlePrimaryIcon"]["CFBundleIconFiles"][0]
+                    for name in nl:
+                        if icon_path in name:
+                            icon_path = name  # im so tired
+                            break
+                except (KeyError, IndexError):
+                    icon_path = f"{os.path.dirname(info_file)}/{pl["CFBundleIconFiles"][0]}"
 
-            return bundleId
+                with archive.open(icon_path) as orig, open(f"icons/{bundleId}.png", "wb") as new:
+                    new.write(orig.read())
 
-    return "com.example.app"
+        return bundleId
 
 
 def generate_bundle_id_csv(token, repo_name="apptesters-org/Repo"):
@@ -70,14 +71,14 @@ def generate_bundle_id_csv(token, repo_name="apptesters-org/Repo"):
     for release in releases:
         print(release.title)
         for asset in release.get_assets():
-            if (asset.name[-3:] != "ipa"):
+            if not asset.name.endswith("ipa"):
                 continue
             name = asset.name[:-4]
             print(asset.name)
 
             try:
                 app_name = name.split("-", 1)[0]
-            except:
+            except Exception:
                 app_name = name
 
             if app_name in df.name.values:
