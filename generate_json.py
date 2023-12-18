@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
         for asset in release.get_assets():
             if not asset.name.endswith(".ipa"):
-                continue 
+                continue
             name = asset.name[:-4]
             date = asset.created_at.strftime("%Y-%m-%d")
             full_date = asset.created_at.strftime("%Y%m%d%H%M%S")

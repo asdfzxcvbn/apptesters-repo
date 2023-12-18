@@ -1,5 +1,4 @@
 import os
-# import shutil
 import zipfile
 import plistlib
 from tempfile import NamedTemporaryFile as NTF
@@ -58,7 +57,7 @@ def get_single_bundle_id(url, name="temp.ipa") -> str:
                 with archive.open(icon_path) as orig, open(f"icons/{bundleId}.png", "wb") as new:
                     new.write(orig.read())
 
-        return bundleId
+    return bundleId
 
 
 def generate_bundle_id_csv(token, repo_name="apptesters-org/Repo"):
