@@ -28,7 +28,7 @@ if __name__ == "__main__":
     data["apps"] = []
 
     g = Github(token)
-    repo_name = "apptesters-org/Repo"
+    repo_name = "asdfzxcvbn/apptesters-repo"
     repo = g.get_repo(repo_name)
     releases = repo.get_releases()
 

@@ -60,7 +60,7 @@ def get_single_bundle_id(url, name="temp.ipa") -> str:
     return bundleId
 
 
-def generate_bundle_id_csv(token, repo_name="apptesters-org/Repo"):
+def generate_bundle_id_csv(token, repo_name="asdfzxcvbn/apptesters-repo"):
     g = github.Github(token)
     repo = g.get_repo(repo_name)
     releases = repo.get_releases()
